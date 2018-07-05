@@ -1,11 +1,13 @@
 import React from "react";
 import { Route } from "react-router-dom";
 
-import HomeContainer from './containers/home/home';
+import PolynomialRegressionContainer from './containers/polynomialRegression/polynomialRegressionContainer';
+import DigitRecognizerContainer from './containers/digitRecognizer/digitRecognizerContainer';
 
 const Routes = () => (
     <div>
-        <Route exact path="/" component={HomeContainer} />
+        <Route exact path="/polynomial" component={PolynomialRegressionContainer} />
+        <Route exact path="/digit-recognizer" component={DigitRecognizerContainer} />
     </div>
 )
 

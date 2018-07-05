@@ -4,7 +4,7 @@ import { Grid, Paper } from 'material-ui';
 import * as tf from '@tensorflow/tfjs';
 import { Scatter } from 'react-chartjs-2';
 
-import { generateData, generateLineData } from '../../utils/data';
+import { generateData, generateLineData } from '../../utils/dataLinear';
 
 
 const a = tf.variable(tf.scalar(Math.random()));
@@ -30,7 +30,7 @@ const bestFitLineData = Array.from(yvalsBestFit).map((y, i) => {
   return {'x': xvalsBestFit[i], 'y': yvalsBestFit[i]};
 });
 
-class HomeContainer extends Component {
+class PolynomialRegressionContainer extends Component {
   constructor() {
     super()
     autoBind(this);
@@ -195,4 +195,4 @@ class HomeContainer extends Component {
   }
 }
 
-export default HomeContainer;
+export default PolynomialRegressionContainer;
