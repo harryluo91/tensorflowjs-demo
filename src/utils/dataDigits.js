@@ -101,6 +101,7 @@ export class MnistData {
         this.datasetLabels.slice(0, NUM_CLASSES * NUM_TRAIN_ELEMENTS);
     this.testLabels =
         this.datasetLabels.slice(NUM_CLASSES * NUM_TRAIN_ELEMENTS);
+    this.dataLoaded = true;
   }
 
   nextTrainBatch(batchSize) {
