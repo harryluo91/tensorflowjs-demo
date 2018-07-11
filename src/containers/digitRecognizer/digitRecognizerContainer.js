@@ -149,15 +149,28 @@ class PolynomialRegressionContainer extends Component {
 
     for (let indexX = 0; indexX < 28; indexX++) {
       for (let indexY = 0; indexY < 28; indexY++) {
-        newFlatInputData.push(imageData[indexX][indexY])
+        if (imageData[indexX][indexY] === 0) {
+          newFlatInputData = newFlatInputData.concat([0, 0, 0, 0]);
+        } else {
+          newFlatInputData = newFlatInputData.concat([255, 255, 255, 255]);
+        }
+        // newFlatInputData.push(imageData[indexX][indexY])
       }
     }
 
     const imagesShape = [1, 28, 28, 1];
 
-    const inputs = tf.tensor4d(newFlatInputData, imagesShape);
+    // const inputs = tf.tensor4d(newFlatInputData, imagesShape);
 
-    const output = model.predict(inputs);
+
+    // const imgData = new ImageData(new Uint8ClampedArray(newFlatInputData), 28, 28);
+    const scaled = this.canvas.ctx.drawImage(this.canvas.canvas, 0, 0, 28, 28);
+    const imgData = this.canvas.ctx.getImageData(0, 0, 28, 28);
+    let img = tf.fromPixels(imgData, 1);
+    img = img.reshape([1, 28, 28, 1]);
+    img = tf.cast(img, 'float32');
+
+    const output = model.predict(img);
     const prediction = output.argMax(1).dataSync();
 
     this.setState({
