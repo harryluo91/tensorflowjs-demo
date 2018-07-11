@@ -2,192 +2,193 @@ import React, { Component } from 'react';
 import autoBind from 'react-autobind';
 import { Grid, Paper } from 'material-ui';
 import * as tf from '@tensorflow/tfjs';
-import { Scatter } from 'react-chartjs-2';
+import P5Wrapper from 'react-p5-wrapper';
 
-import { generateData, generateLineData } from '../../utils/dataLinear';
+const random = (min, max) => {
+  return Math.random() * (max - min) + min;
+}
 
+const learningRate = 0.1;
+const optimizer = tf.train.adam(learningRate);
 
-const a = tf.variable(tf.scalar(Math.random()));
-const b = tf.variable(tf.scalar(Math.random()));
-const c = tf.variable(tf.scalar(Math.random()));
-const d = tf.variable(tf.scalar(Math.random()));
+const a = tf.variable(tf.scalar(random(-1, 1)));
+const b = tf.variable(tf.scalar(random(-1, 1)));
+const c = tf.variable(tf.scalar(random(-1, 1)));
+const d = tf.variable(tf.scalar(random(-1, 1)));
 
-const numIterations = 100;
-const learningRate = 0.5;
-const optimizer = tf.train.sgd(learningRate);
+const Sketch = (p) => {
+  let mouseOn = false;
+  let x_vals = [], y_vals = [], xs = [], ys = [];
+  let addPoints, train, getCurveData;
 
-const trueCoefficients = {a: -.8, b: -.2, c: .9, d: .5};
-const trainingData = generateData(100, trueCoefficients);
-const xvalsTraining = trainingData.xs.dataSync();
-const yvalsTraining = trainingData.ys.dataSync();
-const scatterData = Array.from(yvalsTraining).map((y, i) => {
-  return {'x': xvalsTraining[i], 'y': yvalsTraining[i]};
-});
-const bestFitData = generateLineData(trueCoefficients);
-const xvalsBestFit = bestFitData.xs.dataSync();
-const yvalsBestFit = bestFitData.ys.dataSync();
-const bestFitLineData = Array.from(yvalsBestFit).map((y, i) => {
-  return {'x': xvalsBestFit[i], 'y': yvalsBestFit[i]};
-});
+  p.setup = () => {
+    const myCanavs = p.createCanvas(400, 400);
+    myCanavs.mousePressed(mousePressed);
+    myCanavs.mouseReleased(mouseReleased);
+  }
+
+  const mousePressed = () => {
+    mouseOn = true;
+    let x = p.map(p.mouseX, 0, p.width, -1, 1);
+    let y = p.map(p.mouseY, 0, p.height, 1, -1);
+    addPoints(x, y);
+  }
+  
+  const mouseReleased = () => {
+    mouseOn = false;
+    // train();
+    // p.draw();
+  }
+
+  p.myCustomRedrawAccordingToNewPropsHandler = function (props) {
+    x_vals = props.x_vals;
+    y_vals = props.y_vals;
+    addPoints = props.addPoints;
+    train = props.train;
+    getCurveData = props.getCurveData;
+    xs = props.xs;
+    ys = props.ys;
+
+  };
+
+  p.draw = () => {
+    if (!mouseOn) {
+      train();
+    }
+    p.background(0);
+
+    p.stroke(255);
+    p.strokeWeight(8);
+    if (x_vals && y_vals) {
+      for (let i = 0; i < x_vals.length; i++) {
+        let px = p.map(x_vals[i], -1, 1, 0, p.width);
+        let py = p.map(y_vals[i], -1, 1, p.height, 0);
+        p.point(px, py);
+      }
+    }
+
+    getCurveData();
+    p.beginShape();
+    p.noFill();
+    p.stroke(255);
+    p.strokeWeight(2);
+    for (let i = 0; i < xs.length; i++) {
+      let x = p.map(xs[i], -1, 1, 0, p.width);
+      let y = p.map(ys[i], -1, 1, p.height, 0);
+      p.vertex(x, y);
+    }
+    p.endShape();
+  }
+}
 
 class PolynomialRegressionContainer extends Component {
   constructor() {
     super()
     autoBind(this);
     this.state = {
-      trainedCoefficients: {},
-      plotData: {
-        labels: ['Scatter'],
-        datasets: [
-          {
-            label: 'My First dataset',
-            fill: false,
-            backgroundColor: 'rgba(75,192,192,0.4)',
-            pointBorderColor: 'rgba(75,192,192,1)',
-            pointBackgroundColor: '#fff',
-            pointBorderWidth: 1,
-            pointHoverRadius: 5,
-            pointHoverBackgroundColor: 'rgba(75,192,192,1)',
-            pointHoverBorderColor: 'rgba(220,220,220,1)',
-            pointHoverBorderWidth: 2,
-            pointRadius: 1,
-            pointHitRadius: 10,
-            data: scatterData
-          },
-          {
-            label: 'Line of best fit',
-            type: 'line',
-            borderColor: 'rgb(219, 15, 35)',
-            showLine: true,
-            fill: false,
-            data: bestFitLineData
-          },
-          {
-            label: 'Predict Line',
-            type: 'line',
-            borderColor: 'rgb(64, 105, 229)',
-            showLine: true,
-            fill: false,
-            data: []
-          },
-          {
-            label: 'Trained Line',
-            type: 'line',
-            borderColor: 'rgb(7, 196, 45)',
-            showLine: true,
-            fill: false,
-            data: []
-          }
-        ]
+      x_vals: [],
+      y_vals: [],
+      xs: [],
+      ys: [],
+      coefficients: {
+        a: a.dataSync(),
+        b: b.dataSync(),
+        c: c.dataSync(),
+        d: d.dataSync()
       }
     }
   }
 
   componentDidMount() {
-    this.learnCoefficients().then((res) => {
-      let newPlotData = Object.assign({}, this.state.plotData);
-      newPlotData.datasets[2].data = res.lineDataBeforeTraining;
-      newPlotData.datasets[3].data = res.lineDataAfterTraining;
-      this.setState({
-        plotData: newPlotData
-      })
-    })
   }
 
-  async learnCoefficients() {
-    const randomCoefficients = {
-      a: a.dataSync()[0],
-      b: b.dataSync()[0],
-      c: c.dataSync()[0],
-      d: d.dataSync()[0]
-    }
-    const unTrainedData = generateLineData(randomCoefficients);
-    await this.train(trainingData.xs, trainingData.ys, numIterations);
-    const trainedCoefficients = {
-      a: a.dataSync()[0],
-      b: b.dataSync()[0],
-      c: c.dataSync()[0],
-      d: d.dataSync()[0]
-    }
+  addPoints(x, y) {
+    const { x_vals, y_vals } = this.state;
     this.setState({
-      trainedCoefficients: trainedCoefficients
-    })
-    const trainedData = generateLineData(trainedCoefficients);
-
-    return await this.prepareData(unTrainedData, trainedData);
+      x_vals: [...x_vals, x],
+      y_vals: [...y_vals, y]
+    });
   }
 
-  async prepareData(unTrainedData, trainedData) {
-    const xvalsBeforeTraining = await unTrainedData.xs.data();
-    const yvalsBeforeTraining = await unTrainedData.ys.data();
-    const lineDataBeforeTraining = Array.from(yvalsBeforeTraining).map((y, i) => {
-      return {'x': xvalsBeforeTraining[i], 'y': yvalsBeforeTraining[i]};
-    });
-
-    const xvalsAfterTraining = await trainedData.xs.data();
-    const yvalsAfterTraining = await trainedData.ys.data();
-    const lineDataAfterTraining = Array.from(yvalsAfterTraining).map((y, i) => {
-      return {'x': xvalsAfterTraining[i], 'y': yvalsAfterTraining[i]};
-    });
-
-    return {
-      lineDataBeforeTraining,
-      lineDataAfterTraining
-    }
-  }
-
-  async train(xs, ys, numIterations) {
-    for (let iter = 0; iter < numIterations; iter++) {
-      // optimizer.minimize is where the training happens. 
-  
-      // The function it takes must return a numerical estimate (i.e. loss) 
-      // of how well we are doing using the current state of
-      // the variables we created at the start.
-  
-      // This optimizer does the 'backward' step of our training process
-      // updating variables defined previously in order to minimize the
-      // loss.
-      optimizer.minimize(() => {
-        // Feed the examples into the model
-        const pred = this.predict(xs);
-        return this.loss(pred, ys);
-      });
-      
-      // Use tf.nextFrame to not block the browser.
-      await tf.nextFrame();
-    }
+  loss(pred, labels) {
+    return pred.sub(labels).square().mean();
   }
 
   predict(x) {
-    // y = a * x ^ 3 + b * x ^ 2 + c * x + d
-    return tf.tidy(() => {
-      return a.mul(x.pow(tf.scalar(3, 'int32')))
-        .add(b.mul(x.square()))
-        .add(c.mul(x))
-        .add(d);
+    const xs = tf.tensor1d(x);
+    // y = ax^3 + bx^2 + cx + d
+    const ys = xs.pow(tf.scalar(3)).mul(a)
+      .add(xs.square().mul(b))
+      .add(xs.mul(c))
+      .add(d);
+    return ys;
+  }
+
+  train() {
+    const { x_vals, y_vals } = this.state;
+    tf.tidy(() => {
+      if (x_vals && x_vals.length > 0) {
+        const ys = tf.tensor1d(y_vals);
+        optimizer.minimize(() => this.loss(this.predict(x_vals), ys));
+        this.getCoefficients()
+      }
     })
   }
 
-  loss(prediction, labels) {
-    // Having a good error function is key for training a machine learning model
-    const error = prediction.sub(labels).square().mean();
-    return error;
+  getCurveData() {
+    let xs_tmp = [], ys_tmp = [];
+    for (let x = -1; x <= 1; x += 0.05) {
+      xs_tmp.push(x);
+    }
+    ys_tmp = tf.tidy(() => this.predict(xs_tmp));
+    this.setState({
+      xs: xs_tmp,
+      ys: ys_tmp.dataSync()
+    })
   }
-  
+
+  getCoefficients() {
+    const tmpCo = Object.assign({}, this.state.coefficients);
+    tmpCo.a = a.dataSync();
+    tmpCo.b = b.dataSync();
+    tmpCo.c = c.dataSync();
+    tmpCo.d = d.dataSync();
+    this.setState({
+      coefficients: tmpCo
+    })
+  }
 
   render() {
-    const { plotData, trainedCoefficients } = this.state;
+    const { x_vals, y_vals, xs, ys, coefficients } = this.state;
     return (
       <Paper>
         <Grid container spacing={24}>
-          <Grid item xs={12}>
-            <strong>True Coefficients</strong> a: {trueCoefficients.a} b: {trueCoefficients.b} c: {trueCoefficients.c} d: {trueCoefficients.d}
+          <Grid item xs={6}>
+            <P5Wrapper
+              sketch={Sketch}
+              x_vals={x_vals}
+              y_vals={y_vals}
+              addPoints={this.addPoints}
+              train={this.train}
+              getCurveData={this.getCurveData}
+              xs={xs}
+              ys={ys}
+            />
           </Grid>
-          <Grid item xs={12}>
-            <strong>Learned Coefficients</strong> a: {trainedCoefficients.a} b: {trainedCoefficients.b} c: {trainedCoefficients.c} d: {trainedCoefficients.d}
-          </Grid>
-          <Grid item xs={12}>
-            <Scatter data={plotData}/>
+          <Grid item xs={6}>
+            <Grid container spacing={24}>
+              <Grid item xs={12}>
+                {`Coefficients: a: ${coefficients.a}, b: ${coefficients.b}, c: ${coefficients.c}, d: ${coefficients.d}`}
+              </Grid>
+              <Grid item xs={12}>
+                <div>Points:</div>
+                {
+                  x_vals && x_vals.map((item, index) => (
+                    <div>{`{${item}, ${y_vals[index]}}`}</div>
+                  ))
+                }
+              </Grid>
+            </Grid>
           </Grid>
         </Grid>
       </Paper>
