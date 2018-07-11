@@ -97,26 +97,43 @@ class PolynomialRegressionContainer extends Component {
 
   async startTraining() {
     const { data, batchSize } = this.state;
-    for (let i = 0; i < batchSize; i++) {
-      const trainBatch = data.nextTrainBatch(batchSize);
+    for (let i = 0; i < TRAIN_BATCHES; i++) {
+      const [batch, validationData] = tf.tidy(() => {
+        const batch = data.nextTrainBatch(BATCH_SIZE);
+        batch.xs = batch.xs.reshape([BATCH_SIZE, 28, 28, 1]);
+  
+        let validationData;
+        // Every few batches test the accuracy of the model.
+        if (i % TEST_ITERATION_FREQUENCY === 0) {
+          const testBatch = data.nextTestBatch(TEST_BATCH_SIZE);
+          validationData = [
+            // Reshape the training data from [64, 28x28] to [64, 28, 28, 1] so
+            // that we can feed it to our convolutional neural net.
+            testBatch.xs.reshape([TEST_BATCH_SIZE, 28, 28, 1]), testBatch.labels
+          ];
+        }
+        return [batch, validationData];
+      });
 
-      let testBatch;
-      let validationData;
-      // Every few batches test the accuracy of the mode.
-      if (i % TEST_ITERATION_FREQUENCY === 0) {
-        testBatch = data.nextTestBatch(TEST_BATCH_SIZE);
-        validationData = [
-          testBatch.xs.reshape([TEST_BATCH_SIZE, 28, 28, 1]), testBatch.labels
-        ];
-      }
+      // const trainBatch = data.nextTrainBatch(batchSize);
+
+      // let testBatch;
+      // let validationData;
+      // // Every few batches test the accuracy of the mode.
+      // if (i % TEST_ITERATION_FREQUENCY === 0) {
+      //   testBatch = data.nextTestBatch(TEST_BATCH_SIZE);
+      //   validationData = [
+      //     testBatch.xs.reshape([TEST_BATCH_SIZE, 28, 28, 1]), testBatch.labels
+      //   ];
+      // }
     
       // The entire dataset doesn't fit into memory so we call fit repeatedly
       // with batches.
       const history = await model.fit(
-        trainBatch.xs.reshape([batchSize, 28, 28, 1]),
-        trainBatch.labels,
+        batch.xs,
+        batch.labels,
         {
-          batchSize,
+          batchSize: BATCH_SIZE,
           validationData,
           epochs: 1
         }
@@ -124,6 +141,9 @@ class PolynomialRegressionContainer extends Component {
 
       const loss = history.history.loss[0];
       const accuracy = history.history.acc[0];
+
+      tf.dispose([batch, validationData]);
+      await tf.nextFrame();
 
       console.log(i)
       console.log('LOSS: ' + loss);
@@ -166,7 +186,11 @@ class PolynomialRegressionContainer extends Component {
     // const imgData = new ImageData(new Uint8ClampedArray(newFlatInputData), 28, 28);
     const scaled = this.canvas.ctx.drawImage(this.canvas.canvas, 0, 0, 28, 28);
     const imgData = this.canvas.ctx.getImageData(0, 0, 28, 28);
-    let img = tf.fromPixels(imgData, 1);
+    const dataArray = imgData.data.map((item) => {
+      return item === 0 ? 0 : 255;
+    });
+    const newImgData = new ImageData(new Uint8ClampedArray(dataArray), 28, 28);
+    let img = tf.fromPixels(newImgData, 1);
     img = img.reshape([1, 28, 28, 1]);
     img = tf.cast(img, 'float32');
 
@@ -176,6 +200,15 @@ class PolynomialRegressionContainer extends Component {
     this.setState({
       predictedDigit: prediction[0]
     })
+  }
+
+  async saveModel() {
+    const saved = await model.save('localstorage://my-model');
+    console.log(saved);
+  }
+
+  async showModels() {
+    console.log(await tf.io.listModels());
   }
 
   clearCanvas() {
@@ -227,6 +260,16 @@ class PolynomialRegressionContainer extends Component {
                 <Grid item xs={6}>
                   <Button variant="raised" color="primary" onClick={this.predict}>
                     Predict
+                  </Button>
+                </Grid>
+                <Grid item xs={6}>
+                  <Button variant="raised" color="primary" onClick={this.saveModel}>
+                    Save Model
+                  </Button>
+                </Grid>
+                <Grid item xs={6}>
+                  <Button variant="raised" color="primary" onClick={this.showModels}>
+                    Show Models
                   </Button>
                 </Grid>
               </Grid>

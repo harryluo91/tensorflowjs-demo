@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@tensorflow/tfjs": "^0.10.3",
+    "@tensorflow/tfjs": "^0.11.7",
     "axios": "^0.18.0",
     "chart.js": "^2.7.2",
     "material-ui": "^1.0.0-beta.41",
