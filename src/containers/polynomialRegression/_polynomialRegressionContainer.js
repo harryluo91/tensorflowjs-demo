@@ -8,14 +8,14 @@ const random = (min, max) => {
   return Math.random() * (max - min) + min;
 }
 
-// the learning rate
 const learningRate = 0.1;
+const optimizer = tf.train.adam(learningRate);
 
-// sgd, adam
-const optimizer = null;
-
-// create the initial coeffcients with tf.variable
-// initialize them in the plane of (-1, 1)
+// initial training data
+const a = tf.variable(tf.scalar(random(-1, 1)));
+const b = tf.variable(tf.scalar(random(-1, 1)));
+const c = tf.variable(tf.scalar(random(-1, 1)));
+const d = tf.variable(tf.scalar(random(-1, 1)));
 
 const Sketch = (p) => {
   let mouseOn = false;
@@ -53,7 +53,7 @@ const Sketch = (p) => {
   };
 
   p.draw = () => {
-    if (!mouseOn && train) {
+    if (!mouseOn) {
       train();
     }
     p.background(0);
@@ -68,17 +68,17 @@ const Sketch = (p) => {
       }
     }
 
-    // getCurveData();
-    // p.beginShape();
-    // p.noFill();
-    // p.stroke(255);
-    // p.strokeWeight(2);
-    // for (let i = 0; i < xs.length; i++) {
-    //   let x = p.map(xs[i], -1, 1, 0, p.width);
-    //   let y = p.map(ys[i], -1, 1, p.height, 0);
-    //   p.vertex(x, y);
-    // }
-    // p.endShape();
+    getCurveData();
+    p.beginShape();
+    p.noFill();
+    p.stroke(255);
+    p.strokeWeight(2);
+    for (let i = 0; i < xs.length; i++) {
+      let x = p.map(xs[i], -1, 1, 0, p.width);
+      let y = p.map(ys[i], -1, 1, p.height, 0);
+      p.vertex(x, y);
+    }
+    p.endShape();
   }
 }
 
@@ -87,16 +87,17 @@ class PolynomialRegressionContainer extends Component {
     super()
     autoBind(this);
     this.state = {
-      x_vals: [], //
+      x_vals: [],
       y_vals: [],
       xs: [],
       ys: [],
       coefficients: {
+        a: a.dataSync(),
+        b: b.dataSync(),
+        c: c.dataSync(),
+        d: d.dataSync()
       }
     }
-  }
-
-  componentDidMount() {
   }
 
   addPoints(x, y) {
@@ -108,19 +109,67 @@ class PolynomialRegressionContainer extends Component {
   }
 
   // define the loss function
-  loss() {
+  // taking the mean square of the difference between the prediction and actual values
+  // Mean((predict - actual)^2)
+  loss(pred, labels) {
+    return pred.sub(labels).square().mean();
   }
 
-  predict() {
+  // implement the polynomial with tensorflow js methods
+  // y = ax^3 + bx^2 + cx + d
+  predict(xs) {
+    const ys = xs.pow(tf.scalar(3)).mul(a)
+      .add(xs.square().mul(b))
+      .add(xs.mul(c))
+      .add(d);
+    return ys;
   }
 
+  // train the model to minimize the loss function
+  // optimizer.minimize(f, returnCost?, varList?)
+  // tries to minimize the return value of the function by adjusting the trainable variables provided by the varList
+  // varList: contains specific trainable values (default to all variables)
+  // creates the tensor ys from the y_vals on the canvas
+  // feed the x_vals to the predict function to get the prediction => ys
+  // compute the loss between predicted ys and actual ys
+  // use optimizer.minimize() to minimize this loss
   train() {
+    const { x_vals, y_vals } = this.state;
+    tf.tidy(() => {
+      if (x_vals && x_vals.length > 0) {
+        const ys = tf.tensor1d(y_vals);
+        const xs = tf.tensor1d(x_vals);
+        optimizer.minimize(() => this.loss(this.predict(xs), ys));
+        this.getCoefficients()
+      }
+    })
   }
 
+  // the actual predict function to get get the curve data
+  // generate x values between (-1, 1) at an interval of 0.05
+  // feed the x values to the predict function to get the predicted y values
   getCurveData() {
+    let xs_tmp = [], ys_tmp = [];
+    for (let x = -1; x <= 1; x += 0.05) {
+      xs_tmp.push(x);
+    }
+    ys_tmp = tf.tidy(() => this.predict(xs_tmp));
+    this.setState({
+      xs: xs_tmp,
+      ys: ys_tmp.dataSync()
+    })
   }
 
+  // get the actual value of the current coefficients
   getCoefficients() {
+    const tmpCo = Object.assign({}, this.state.coefficients);
+    tmpCo.a = a.dataSync();
+    tmpCo.b = b.dataSync();
+    tmpCo.c = c.dataSync();
+    tmpCo.d = d.dataSync();
+    this.setState({
+      coefficients: tmpCo
+    })
   }
 
   render() {

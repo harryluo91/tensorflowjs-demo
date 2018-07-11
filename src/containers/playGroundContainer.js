@@ -10,7 +10,7 @@ class PlayGroundContainer extends Component {
 
 	componentDidMount() {
 		
-		this.memory();
+		this.layers();
 	}
 
 	// tf.tensor(values, shape?, dtype?)
@@ -21,7 +21,7 @@ class PlayGroundContainer extends Component {
 		// 1d tensor
 		// const a = tf.tensor([1, 2, 3]);
 
-		// 2s tensor
+		// 2d tensor
 		// const a = tf.tensor([1, 2, 3], [1, 2, 3])
 
 		// tensor with shape
@@ -90,7 +90,88 @@ class PlayGroundContainer extends Component {
 
 		// const c = a.matMul(b);
 		console.log(tf.memory().numTensors);
-	}
+  }
+  
+  
+  layers() {
+    const model = tf.sequential();
+
+    // dense layers - fully connected layers
+    // input, hidden, output layers
+    // config
+    const configHidden = {
+      inputShape: 2,
+      units: 4,
+      activation: 'sigmoid'
+    }
+    const configOutput = {
+      units: 1,
+      activation: 'sigmoid'
+    }
+    const hidden = tf.layers.dense(configHidden);
+    const ouput = tf.layers.dense(configOutput);
+
+    // add layers to the model
+    model.add(hidden);
+    model.add(ouput);
+
+    // compile the model
+    // with optimizer and loss function
+    const sgdOptimizer = tf.train.sgd(0.1);
+    const configCompile = {
+      optimizer: sgdOptimizer,
+      loss: 'meanSquaredError'
+    }
+    model.compile(configCompile);
+
+    // create inputs
+    // shape - 1 by 2 arrays x 2
+    // const inputs = tf.tensor2d([[1, 1]]);
+
+    // const output = model.predict(inputs);
+
+    // output.print();
+
+    // train
+    const xTrain = tf.tensor2d([
+      [0, 0],
+      [0.5, 0.5],
+      [1, 1]
+    ])
+
+    const yTrain = tf.tensor2d([
+      [1],
+      [0.5],
+      [0]
+    ])
+
+    // model.fit()
+    // fit is an async function, need to use async await to train in a loop
+    // for loop doesn't work
+    tf.tidy(() => {
+      const trainConfig = {
+        epochs: 10,
+        shuffle: true
+      }
+      this.train(model, xTrain, yTrain, trainConfig).then(() => {
+        const xTest = tf.tensor2d([
+          [1, 1],
+          [2, 2],
+          [0, 0]
+        ]);
+        const output = model.predict(xTrain);
+        output.print();
+      });
+    })
+    
+  }
+
+  async train(model, xs, ys, config) {
+    for (let i = 0; i < 1000; i++) {
+      const history = await model.fit(xs, ys, config);
+      console.log(history.history.loss[0]);
+    }
+  }
 
   render() {
     return (
