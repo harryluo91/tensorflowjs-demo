@@ -153,7 +153,7 @@ class PolynomialRegressionContainer extends Component {
     for (let x = -1; x <= 1; x += 0.05) {
       xs_tmp.push(x);
     }
-    ys_tmp = tf.tidy(() => this.predict(xs_tmp));
+    ys_tmp = tf.tidy(() => this.predict(tf.tensor1d(xs_tmp)));
     this.setState({
       xs: xs_tmp,
       ys: ys_tmp.dataSync()

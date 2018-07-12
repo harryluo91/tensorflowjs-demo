@@ -60,7 +60,7 @@ const TRAIN_BATCHES = 100;
 // Every TEST_ITERATION_FREQUENCY batches, test accuracy over TEST_BATCH_SIZE examples.
 // Ideally, we'd compute accuracy over the whole test set, but for performance
 // reasons we'll use a subset.
-const TEST_BATCH_SIZE = 10;
+const TEST_BATCH_SIZE = 1000;
 const TEST_ITERATION_FREQUENCY = 5;
 
 class PolynomialRegressionContainer extends Component {
@@ -114,18 +114,6 @@ class PolynomialRegressionContainer extends Component {
         }
         return [batch, validationData];
       });
-
-      // const trainBatch = data.nextTrainBatch(batchSize);
-
-      // let testBatch;
-      // let validationData;
-      // // Every few batches test the accuracy of the mode.
-      // if (i % TEST_ITERATION_FREQUENCY === 0) {
-      //   testBatch = data.nextTestBatch(TEST_BATCH_SIZE);
-      //   validationData = [
-      //     testBatch.xs.reshape([TEST_BATCH_SIZE, 28, 28, 1]), testBatch.labels
-      //   ];
-      // }
     
       // The entire dataset doesn't fit into memory so we call fit repeatedly
       // with batches.
@@ -221,16 +209,6 @@ class PolynomialRegressionContainer extends Component {
       data ?
         <Paper>
           <Grid container spacing={24} justify="center" alignItems="center">
-            <Grid item xs={6}>
-              <TextField
-                id="batchSize"
-                label="Number of Batches"
-                value={this.state.batchSize}
-                onChange={this.handleChange('batchSize')}
-                margin="normal"
-                type="number"
-              />
-            </Grid>
             <Grid item xs={6}>
               <Button variant="raised" color="primary" onClick={this.startTraining}>
                 Start Training
